@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Controle de gastos pessoais offline, com dados salvos no próprio navegador.">
+<meta name="theme-color" content="#0f172a">
+<title>Controle de Gastos</title>
+<style>
+  :root {
+    --bg: #f4f5f7;
+    --surface: #ffffff;
+    --surface-2: #f8fafc;
+    --border: #e2e8f0;
+    --text: #0f172a;
+    --text-dim: #64748b;
+    --accent: #2563eb;
+    --accent-text: #ffffff;
+    --danger: #dc2626;
+    --danger-bg: #fef2f2;
+    --shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 24px rgba(15, 23, 42, .06);
+    --radius: 14px;
+    --tap: 44px;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1120;
+      --surface: #131c2e;
+      --surface-2: #1b2539;
+      --border: #27324a;
+      --text: #e8edf7;
+      --text-dim: #93a1bb;
+      --accent: #60a5fa;
+      --accent-text: #0b1120;
+      --danger: #f87171;
+      --danger-bg: #2a1518;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 8px 24px rgba(0, 0, 0, .35);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html { -webkit-text-size-adjust: 100%; }
+
+  body {
+    margin: 0;
+    padding: 16px 16px calc(32px + env(safe-area-inset-bottom));
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app { max-width: 560px; margin: 0 auto; }
+
+  header { margin-bottom: 20px; }
+
+  h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    letter-spacing: -.02em;
+  }
+
+  .sub {
+    margin: 4px 0 0;
+    color: var(--text-dim);
+    font-size: .875rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+
+  /* ---------- Resumo ---------- */
+
+  .summary { display: flex; flex-direction: column; gap: 12px; }
+
+  .month-picker {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .month-picker label {
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+
+  #filtroMes {
+    flex: 1;
+    max-width: 240px;
+  }
+
+  .total-label {
+    font-size: .8125rem;
+    color: var(--text-dim);
+  }
+
+  .total-value {
+    font-size: 2rem;
+    font-weight: 700;
+    letter-spacing: -.03em;
+    line-height: 1.1;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .total-count {
+    font-size: .8125rem;
+    color: var(--text-dim);
+  }
+
+  /* ---------- Formulário ---------- */
+
+  h2 {
+    margin: 0 0 12px;
+    font-size: 1rem;
+  }
+
+  .field { margin-bottom: 12px; }
+
+  .row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  label.lbl {
+    display: block;
+    margin-bottom: 6px;
+    font-size: .8125rem;
+    font-weight: 600;
+    color: var(--text-dim);
+  }
+
+  input, select, button {
+    font: inherit;
+    color: inherit;
+  }
+
+  input, select {
+    width: 100%;
+    min-height: var(--tap);
+    padding: 10px 12px;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    appearance: none;
+  }
+
+  select {
+    background-image: linear-gradient(45deg, transparent 50%, currentColor 50%),
+                      linear-gradient(135deg, currentColor 50%, transparent 50%);
+    background-position: right 16px center, right 11px center;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: 34px;
+  }
+
+  input:focus-visible, select:focus-visible, button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  input[aria-invalid="true"] { border-color: var(--danger); }
+
+  .erro {
+    display: none;
+    margin-top: 6px;
+    color: var(--danger);
+    font-size: .8125rem;
+  }
+
+  .erro.visivel { display: block; }
+
+  .btn-primary {
+    width: 100%;
+    min-height: var(--tap);
+    margin-top: 4px;
+    background: var(--accent);
+    color: var(--accent-text);
+    border: none;
+    border-radius: 10px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .btn-primary:active { opacity: .85; }
+
+  /* ---------- Lista ---------- */
+
+  .lista { list-style: none; margin: 0; padding: 0; }
+
+  .grupo-data {
+    margin: 16px 0 8px;
+    font-size: .75rem;
+    font-weight: 700;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  .grupo-data:first-child { margin-top: 0; }
+
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-top: 1px solid var(--border);
+  }
+
+  .item:first-of-type { border-top: none; }
+
+  .item-info { flex: 1; min-width: 0; }
+
+  .item-desc {
+    font-weight: 500;
+    overflow-wrap: anywhere;
+  }
+
+  .item-cat {
+    font-size: .8125rem;
+    color: var(--text-dim);
+  }
+
+  .item-valor {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .btn-excluir {
+    flex: none;
+    width: var(--tap);
+    height: var(--tap);
+    display: grid;
+    place-items: center;
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-dim);
+    cursor: pointer;
+    font-size: 1.1rem;
+    line-height: 1;
+  }
+
+  .btn-excluir:hover, .btn-excluir:active {
+    background: var(--danger-bg);
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .vazio {
+    margin: 0;
+    padding: 24px 8px;
+    text-align: center;
+    color: var(--text-dim);
+    font-size: .9375rem;
+  }
+
+  .sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  @media (min-width: 480px) {
+    body { padding-top: 32px; }
+    .card { padding: 20px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header>
+    <h1>Controle de Gastos</h1>
+    <p class="sub">Seus dados ficam salvos apenas neste navegador.</p>
+  </header>
+
+  <section class="card summary" aria-labelledby="tituloResumo">
+    <h2 id="tituloResumo" class="sr-only">Resumo</h2>
+
+    <div class="month-picker">
+      <label for="filtroMes">Período</label>
+      <select id="filtroMes"></select>
+    </div>
+
+    <div>
+      <div class="total-label" id="totalLabel">Total do mês</div>
+      <div class="total-value" id="totalValor" aria-live="polite">R$ 0,00</div>
+      <div class="total-count" id="totalContagem">Nenhum gasto registrado</div>
+    </div>
+  </section>
+
+  <section class="card" aria-labelledby="tituloForm">
+    <h2 id="tituloForm">Novo gasto</h2>
+
+    <form id="formGasto" novalidate>
+      <div class="field">
+        <label class="lbl" for="descricao">Descrição</label>
+        <input id="descricao" name="descricao" type="text" maxlength="80"
+               placeholder="Ex.: Almoço no centro" autocomplete="off" required>
+        <p class="erro" id="erroDescricao">Informe uma descrição.</p>
+      </div>
+
+      <div class="row">
+        <div class="field">
+          <label class="lbl" for="valor">Valor (R$)</label>
+          <input id="valor" name="valor" type="text" inputmode="decimal"
+                 placeholder="0,00" autocomplete="off" required>
+          <p class="erro" id="erroValor">Informe um valor maior que zero.</p>
+        </div>
+
+        <div class="field">
+          <label class="lbl" for="data">Data</label>
+          <input id="data" name="data" type="date" required>
+          <p class="erro" id="erroData">Informe uma data válida.</p>
+        </div>
+      </div>
+
+      <div class="field">
+        <label class="lbl" for="categoria">Categoria</label>
+        <select id="categoria" name="categoria"></select>
+      </div>
+
+      <button class="btn-primary" type="submit">Adicionar gasto</button>
+    </form>
+  </section>
+
+  <section class="card" aria-labelledby="tituloLista">
+    <h2 id="tituloLista">Gastos</h2>
+    <ul class="lista" id="listaGastos"></ul>
+    <p class="vazio" id="listaVazia">Nenhum gasto neste período.</p>
+  </section>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  var CHAVE = 'controle-gastos:v1';
+
+  var CATEGORIAS = [
+    'Alimentação', 'Transporte', 'Moradia', 'Saúde',
+    'Educação', 'Lazer', 'Compras', 'Contas', 'Outros'
+  ];
+
+  var moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  var el = {
+    form: document.getElementById('formGasto'),
+    descricao: document.getElementById('descricao'),
+    valor: document.getElementById('valor'),
+    data: document.getElementById('data'),
+    categoria: document.getElementById('categoria'),
+    filtroMes: document.getElementById('filtroMes'),
+    totalLabel: document.getElementById('totalLabel'),
+    totalValor: document.getElementById('totalValor'),
+    totalContagem: document.getElementById('totalContagem'),
+    lista: document.getElementById('listaGastos'),
+    listaVazia: document.getElementById('listaVazia')
+  };
+
+  var gastos = [];
+  var mesSelecionado = '';
+
+  /* ---------------- Persistência ---------------- */
+
+  function carregar() {
+    var bruto;
+    try {
+      bruto = window.localStorage.getItem(CHAVE);
+    } catch (e) {
+      return []; // localStorage bloqueado (modo privativo, etc.)
+    }
+    if (!bruto) return [];
+
+    var dados;
+    try {
+      dados = JSON.parse(bruto);
+    } catch (e) {
+      return [];
+    }
+    if (!Array.isArray(dados)) return [];
+
+    return dados.filter(valido).map(function (g) {
+      return {
+        id: String(g.id),
+        descricao: String(g.descricao),
+        centavos: Math.round(g.centavos),
+        data: String(g.data),
+        categoria: String(g.categoria),
+        criadoEm: Number(g.criadoEm) || 0
+      };
+    });
+  }
+
+  function valido(g) {
+    return g && typeof g === 'object'
+      && typeof g.descricao === 'string'
+      && typeof g.centavos === 'number' && isFinite(g.centavos) && g.centavos > 0
+      && typeof g.data === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(g.data);
+  }
+
+  function salvar() {
+    try {
+      window.localStorage.setItem(CHAVE, JSON.stringify(gastos));
+    } catch (e) {
+      window.alert('Não foi possível salvar: o armazenamento do navegador está indisponível ou cheio.');
+    }
+  }
+
+  /* ---------------- Utilidades ---------------- */
+
+  function novoId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+    return String(Date.now()) + '-' + Math.random().toString(36).slice(2, 10);
+  }
+
+  // Aceita "12,50", "12.50", "1.234,56" e "R$ 12,50". Devolve centavos ou null.
+  function paraCentavos(texto) {
+    var s = String(texto).replace(/\s|R\$/gi, '');
+    if (!s) return null;
+
+    if (s.indexOf(',') !== -1) {
+      s = s.replace(/\./g, '').replace(',', '.');   // vírgula é o separador decimal
+    } else if ((s.match(/\./g) || []).length > 1) {
+      s = s.replace(/\./g, '');                     // "1.234.567" = milhares
+    }
+
+    if (!/^\d+(\.\d+)?$/.test(s)) return null;
+
+    var centavos = Math.round(parseFloat(s) * 100);
+    return centavos > 0 ? centavos : null;
+  }
+
+  function hojeISO() {
+    var d = new Date();
+    var mes = String(d.getMonth() + 1).padStart(2, '0');
+    var dia = String(d.getDate()).padStart(2, '0');
+    return d.getFullYear() + '-' + mes + '-' + dia;
+  }
+
+  // "2026-09-19" -> Date local. Evita o deslocamento de fuso do new Date(string).
+  function paraData(iso) {
+    var p = iso.split('-');
+    return new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  }
+
+  function rotuloData(iso) {
+    return paraData(iso).toLocaleDateString('pt-BR', {
+      weekday: 'short', day: '2-digit', month: 'short', year: 'numeric'
+    });
+  }
+
+  function rotuloMes(mes) {
+    var p = mes.split('-');
+    var texto = new Date(Number(p[0]), Number(p[1]) - 1, 1)
+      .toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
+  }
+
+  function mesDe(iso) {
+    return iso.slice(0, 7);
+  }
+
+  /* ---------------- Render ---------------- */
+
+  function mesesDisponiveis() {
+    var vistos = {};
+    var meses = [];
+    gastos.forEach(function (g) {
+      var m = mesDe(g.data);
+      if (!vistos[m]) { vistos[m] = true; meses.push(m); }
+    });
+    var atual = mesDe(hojeISO());
+    if (!vistos[atual]) meses.push(atual);
+    return meses.sort().reverse();
+  }
+
+  function renderFiltroMes() {
+    var meses = mesesDisponiveis();
+    if (meses.indexOf(mesSelecionado) === -1 && mesSelecionado !== 'todos') {
+      mesSelecionado = meses[0];
+    }
+
+    el.filtroMes.textContent = '';
+    meses.forEach(function (m) {
+      var opt = document.createElement('option');
+      opt.value = m;
+      opt.textContent = rotuloMes(m);
+      el.filtroMes.appendChild(opt);
+    });
+
+    var todos = document.createElement('option');
+    todos.value = 'todos';
+    todos.textContent = 'Todos os períodos';
+    el.filtroMes.appendChild(todos);
+
+    el.filtroMes.value = mesSelecionado;
+  }
+
+  function gastosVisiveis() {
+    var lista = mesSelecionado === 'todos'
+      ? gastos.slice()
+      : gastos.filter(function (g) { return mesDe(g.data) === mesSelecionado; });
+
+    // Mais recentes primeiro; empate na data resolvido pela ordem de cadastro.
+    lista.sort(function (a, b) {
+      if (a.data !== b.data) return a.data < b.data ? 1 : -1;
+      return b.criadoEm - a.criadoEm;
+    });
+    return lista;
+  }
+
+  function renderResumo(visiveis) {
+    var total = visiveis.reduce(function (soma, g) { return soma + g.centavos; }, 0);
+
+    el.totalLabel.textContent = mesSelecionado === 'todos'
+      ? 'Total de todos os períodos'
+      : 'Total de ' + rotuloMes(mesSelecionado).toLowerCase();
+
+    el.totalValor.textContent = moeda.format(total / 100);
+    el.totalContagem.textContent = visiveis.length === 0
+      ? 'Nenhum gasto registrado'
+      : visiveis.length + (visiveis.length === 1 ? ' gasto' : ' gastos');
+  }
+
+  function renderLista(visiveis) {
+    el.lista.textContent = '';
+    el.listaVazia.style.display = visiveis.length ? 'none' : 'block';
+
+    var dataCorrente = null;
+
+    visiveis.forEach(function (g) {
+      if (g.data !== dataCorrente) {
+        dataCorrente = g.data;
+        var cabecalho = document.createElement('li');
+        cabecalho.className = 'grupo-data';
+        cabecalho.textContent = rotuloData(g.data);
+        el.lista.appendChild(cabecalho);
+      }
+
+      var item = document.createElement('li');
+      item.className = 'item';
+
+      var info = document.createElement('div');
+      info.className = 'item-info';
+
+      var desc = document.createElement('div');
+      desc.className = 'item-desc';
+      desc.textContent = g.descricao;           // textContent evita injeção de HTML
+
+      var cat = document.createElement('div');
+      cat.className = 'item-cat';
+      cat.textContent = g.categoria;
+
+      info.appendChild(desc);
+      info.appendChild(cat);
+
+      var valor = document.createElement('div');
+      valor.className = 'item-valor';
+      valor.textContent = moeda.format(g.centavos / 100);
+
+      var botao = document.createElement('button');
+      botao.type = 'button';
+      botao.className = 'btn-excluir';
+      botao.dataset.id = g.id;
+      botao.setAttribute('aria-label', 'Excluir ' + g.descricao);
+      botao.textContent = '✕';
+
+      item.appendChild(info);
+      item.appendChild(valor);
+      item.appendChild(botao);
+      el.lista.appendChild(item);
+    });
+  }
+
+  function render() {
+    renderFiltroMes();
+    var visiveis = gastosVisiveis();
+    renderResumo(visiveis);
+    renderLista(visiveis);
+  }
+
+  /* ---------------- Validação do formulário ---------------- */
+
+  function marcarErro(campo, idErro, temErro) {
+    campo.setAttribute('aria-invalid', temErro ? 'true' : 'false');
+    document.getElementById(idErro).classList.toggle('visivel', temErro);
+    return !temErro;
+  }
+
+  function adicionar(evento) {
+    evento.preventDefault();
+
+    var descricao = el.descricao.value.trim();
+    var centavos = paraCentavos(el.valor.value);
+    var data = el.data.value;
+
+    var okDesc = marcarErro(el.descricao, 'erroDescricao', descricao === '');
+    var okValor = marcarErro(el.valor, 'erroValor', centavos === null);
+    var okData = marcarErro(el.data, 'erroData', !/^\d{4}-\d{2}-\d{2}$/.test(data));
+
+    if (!okDesc || !okValor || !okData) {
+      (!okDesc ? el.descricao : !okValor ? el.valor : el.data).focus();
+      return;
+    }
+
+    gastos.push({
+      id: novoId(),
+      descricao: descricao,
+      centavos: centavos,
+      data: data,
+      categoria: el.categoria.value,
+      criadoEm: Date.now()
+    });
+
+    salvar();
+
+    // Mostra o mês do gasto recém-criado, senão ele "some" da tela.
+    if (mesSelecionado !== 'todos') mesSelecionado = mesDe(data);
+    render();
+
+    el.form.reset();
+    el.data.value = data;                 // mantém a data para lançamentos em sequência
+    el.descricao.focus();
+  }
+
+  function aoClicarNaLista(evento) {
+    var botao = evento.target.closest('.btn-excluir');
+    if (!botao) return;
+
+    var alvo = gastos.filter(function (g) { return g.id === botao.dataset.id; })[0];
+    if (!alvo) return;
+
+    var confirmou = window.confirm(
+      'Excluir "' + alvo.descricao + '" (' + moeda.format(alvo.centavos / 100) + ')?'
+    );
+    if (!confirmou) return;
+
+    gastos = gastos.filter(function (g) { return g.id !== alvo.id; });
+    salvar();
+    render();
+  }
+
+  /* ---------------- Inicialização ---------------- */
+
+  CATEGORIAS.forEach(function (nome) {
+    var opt = document.createElement('option');
+    opt.value = nome;
+    opt.textContent = nome;
+    el.categoria.appendChild(opt);
+  });
+
+  gastos = carregar();
+  mesSelecionado = mesDe(hojeISO());
+  el.data.value = hojeISO();
+
+  el.form.addEventListener('submit', adicionar);
+  el.lista.addEventListener('click', aoClicarNaLista);
+  el.filtroMes.addEventListener('change', function () {
+    mesSelecionado = el.filtroMes.value;
+    render();
+  });
+
+  // Mantém abas abertas em sincronia.
+  window.addEventListener('storage', function (evento) {
+    if (evento.key === CHAVE) {
+      gastos = carregar();
+      render();
+    }
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
